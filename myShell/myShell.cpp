@@ -8,8 +8,29 @@ Working:
 2 Tab Completion and Arrow History
 1 Can run an executable
 
+TODO:
+file history
+
+ls > foo.txt write ls to foo.txt creates foo.txt
+ls > foo.txt -l
+|           | ^only arg
+dup2(what to change, where to go)
+
+fd = open(w[0], O_CREAT | O_WRONGLY, 0664);
+if bad
+    perror
+    exit
+
+int ret = dup2(0, fd) standard out
+-or-
+int ret = dup2(1, fd) standard in
+if error
+    perror exit
+
+
 */
 #include <iostream>
+#include<sys/wait.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -20,6 +41,7 @@ Working:
 #include <unistd.h>
 #include <readline/readline.h>
 #include <readline/history.h> //add correction
+#include <glob.h>
 
 using namespace std;
 
@@ -35,6 +57,22 @@ void changeDir(const char *path) // changes directory to given path
     {
         cout << "Error: Directory Doesn't Exist" << endl;
     }
+}
+
+void runProgram(char** args) //exec
+{
+    if (fork() == 0){
+        execvp(args[0], args);
+        cout << "Error: File could not run." << endl;
+    } else{
+        int status;
+        wait(&status);
+        return;
+    }
+}
+
+void globThis(string path)
+{
 }
 
 int main()
@@ -56,8 +94,12 @@ int main()
         }
         else if ((program.rfind("./", 0)) == 0) // execute files
         {
-            execvp(args[0], args);
-            cout << "Error: File could not run." << endl;
+            runProgram(args);
+        }
+        else if (!(strcmp(args[0], "ls")))
+        {
+            cout << "Displaying files in directory" << endl;
+            globThis(GetCurrentWorkingDir());
         }
         else if (!(strcmp(args[0], "quit")))
         {
