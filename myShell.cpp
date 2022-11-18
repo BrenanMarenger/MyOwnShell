@@ -1,8 +1,9 @@
 // Brenan Marenger
 // finding current dir: https://stackoverflow.com/questions/4807629/how-do-i-find-the-current-directory
 // readline: https://en.wikipedia.org/wiki/GNU_Readline
+// readline history: https://stackoverflow.com/questions/38792542/readline-h-history-usage-in-c
 // glob: https://man7.org/linux/man-pages/man3/glob.3.html
-//wordexp: https://man7.org/linux/man-pages/man3/wordexp.3.html
+// wordexp: https://man7.org/linux/man-pages/man3/wordexp.3.html
 
 /*
 Working:
@@ -49,6 +50,7 @@ if error
 */
 #include <iostream>
 #include <wordexp.h>
+#include <string>
 #include <sys/wait.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -67,6 +69,10 @@ if error
 using namespace std;
 
 string listOfCommands = "Run an executable(./), bang(!), change directory(cd)";
+void bangThis(string arg);
+string GetCurrentWorkingDir();
+void changeDir(const char *path);
+void runShell(string line);
 
 string GetCurrentWorkingDir() // returns current working directory
 {
@@ -82,54 +88,12 @@ void changeDir(const char *path) // changes directory to given path
     }
 }
 
-void runProgram(char **args) // runs an executable
-{
-    if (fork() == 0)
-    {
-        execvp(args[0], args);
-        cout << "Error: File could not run." << endl;
-    }
-    else
-    {
-        int status;
-        wait(&status);
-        return;
-    }
-}
-
-void globThis(const char *arg) // list command with -l
-{
-    if (fork() == 0)
-    {
-        glob_t globbuf;
-        globbuf.gl_offs = 2;
-        glob("*.c", GLOB_DOOFFS, NULL, &globbuf);
-        //glob("../*.c", GLOB_DOOFFS | GLOB_APPEND, NULL, &globbuf);
-        globbuf.gl_pathv[0] = "ls";
-
-        if (!(strcmp(arg, "-l"))) // fix
-        {
-            cout << "Went here" << endl;
-            globbuf.gl_pathv[1] = "-l";
-            execvp("ls", &globbuf.gl_pathv[0]);
-        }
-
-        cout << "Error: list command could not run" << endl;
-    }
-    else
-    {
-        int status;
-        wait(&status);
-        return;
-    }
-}
-
-bool is_number(string &s) //checks if input is a number
+bool is_number(string &s) // checks if input is a number
 {
     return (strspn(s.c_str(), "123456789") == s.size());
 }
 
-void bangThis(string arg)// bang command (!)
+void bangThis(string arg) // bang command (!)
 {
     HISTORY_STATE *myhist = history_get_history_state();
     HIST_ENTRY **mylist = history_list();
@@ -144,7 +108,7 @@ void bangThis(string arg)// bang command (!)
             int toNum = stoi(arg);
             char *temp = mylist[(count - toNum)]->line;
             cout << "History in spot " << arg << " is " << mylist[(count - toNum)]->line << endl;
-            execvp(temp, &temp); // not working
+            runShell(mylist[(count - toNum)]->line); // not working
             cout << "Error: Bang(!) could not run that command" << endl;
         }
         else
@@ -158,7 +122,7 @@ void bangThis(string arg)// bang command (!)
     }
 }
 
-void runShell()
+void runShell(string line)
 {
     while (1)
     {
@@ -172,19 +136,11 @@ void runShell()
         wordexp(input, &p, 0);
         w = p.we_wordv;
         string temp = w[0];
-        
-        //for each loop here (example; nextCommand; ..)
+
+        // for each loop here (example; nextCommand; ..)
         if (!(strcmp(w[0], "cd"))) // change directory
         {
             changeDir(w[1]);
-        }
-        else if ((temp.rfind("./", 0)) == 0) // execute files
-        {
-            runProgram(w);
-        }
-        else if (!(strcmp(w[0], "ls"))) // list command
-        {
-            globThis(w[1]);
         }
         else if (!(strcmp(w[0], "exit")))
         {
@@ -200,7 +156,16 @@ void runShell()
         }
         else
         {
-            cout << "Error: Command does not exist" << endl;
+            if (fork() == 0)
+            {
+                execvp(w[0], w);
+                cout << "Error: Command does not exist" << endl;
+            }
+            else
+            {
+                int status;
+                wait(&status);
+            }
         }
         free(input);
         wordfree(&p);
@@ -211,10 +176,12 @@ int main()
 {
     ifstream is(".myshell");
     string line;
-    while (getline(is, line)) {
+    while (getline(is, line))
+    {
         cout << line << endl;
     }
-
-    runShell();
+    is.close();
+    string pass = "random";
+    runShell(pass);
     return 0;
 }
