@@ -1,0 +1,4 @@
+cd ..
+./program 213
+asdf
+ls -l
